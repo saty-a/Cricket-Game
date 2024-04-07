@@ -12,6 +12,7 @@ class GameController extends GetxController {
   static const String prefGamesPlayed = 'gamesPlayed';
   static const String prefGamesWon = 'gamesWon';
   static const String prefDifficulty = 'difficulty';
+  static const String prefShowInstructions = 'showInstructions';
 
   final _storage = GetStorage();
   final _random = Random();
@@ -51,6 +52,7 @@ class GameController extends GetxController {
     gamesPlayed.value = _storage.read(prefGamesPlayed) ?? 0;
     gamesWon.value = _storage.read(prefGamesWon) ?? 0;
     difficulty.value = Difficulty.values[_storage.read(prefDifficulty) ?? 1];
+    showInstructions.value = _storage.read(prefShowInstructions) ?? true;
   }
 
   void _updateStorage() {
@@ -58,6 +60,7 @@ class GameController extends GetxController {
     _storage.write(prefGamesPlayed, gamesPlayed.value);
     _storage.write(prefGamesWon, gamesWon.value);
     _storage.write(prefDifficulty, difficulty.value.index);
+    _storage.write(prefShowInstructions, showInstructions.value);
   }
 
   void setDifficulty(Difficulty newDifficulty) {
@@ -76,7 +79,6 @@ class GameController extends GetxController {
     animationState.value = AnimationState.idle;
     showInstructions.value = true;
     isButtonEnabled.value = true;
-    _startTimer();
   }
 
   void _startTimer() {
@@ -263,6 +265,8 @@ class GameController extends GetxController {
 
   void hideInstructions() {
     showInstructions.value = false;
+    _updateStorage();
+    _startTimer();
   }
 }
 

@@ -9,10 +9,12 @@ import '../controllers/game_controller.dart';
 class TrapeziumPainter extends CustomPainter {
   final Gradient gradient;
   final bool isTransparent;
+  final bool isInverted;
 
   TrapeziumPainter({
     required this.gradient,
     this.isTransparent = false,
+    this.isInverted = false,
   });
 
   @override
@@ -27,9 +29,9 @@ class TrapeziumPainter extends CustomPainter {
     }
 
     final path = Path();
-    // Bottom width is larger than top width for inverted trapezium effect
-    final topWidth = size.width * 0.7;
-    final bottomWidth = size.width;
+    // For inverted trapezium (longer at top, shorter at bottom)
+    final topWidth = isInverted ? size.width : size.width * 0.7;
+    final bottomWidth = isInverted ? size.width * 0.7 : size.width;
     final height = size.height;
 
     path.moveTo((size.width - topWidth) / 2, 0);
@@ -92,6 +94,12 @@ class GameView extends GetView<GameController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (controller.showInstructions.value) {
+        _showInstructionsDialog();
+      }
+    });
+
     return Stack(
       children: [
         Container(
@@ -114,17 +122,35 @@ class GameView extends GetView<GameController> {
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
-                      child: Wrap(
+                      child: Column(
                         children: [
-                          _buildStats(),
-                          _buildScoreBoard(),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withAlpha(200),
+                                  Colors.black.withAlpha(100),
+                                  Colors.transparent,
+                                ],
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                _buildStats(),
+                                _buildScoreBoard(),
+                              ],
+                            ),
+                          ),
+                          // Rest of the content
                           _buildTargetScore(),
                           _buildHandGestures(),
                         ],
                       ),
                     ),
                   ),
-                  _buildInputArea(),
+                  _buildInputArea()
                 ],
               ),
             ),
@@ -132,6 +158,166 @@ class GameView extends GetView<GameController> {
         ),
         _buildOverlayAnimation(),
         _buildGameOverOverlay(),
+      ],
+    );
+  }
+
+  void _showInstructionsDialog() {
+    Get.dialog(
+      WillPopScope(
+        onWillPop: () async => false,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: double.maxFinite,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue.shade900,
+                  Colors.blue.shade700,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(100),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title
+                const Text(
+                  'How to Play',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Instructions
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      _buildInstructionStep(
+                        '1',
+                        'Choose a number between 1 and 6',
+                        Icons.touch_app,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInstructionStep(
+                        '2',
+                        'Tab the button to score runs',
+                        Icons.sports_cricket,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInstructionStep(
+                        '3',
+                        'Get out if your number matches the bot\'s number',
+                        Icons.warning,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInstructionStep(
+                        '4',
+                        'Score more runs than the bot to win!',
+                        Icons.emoji_events,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // Start Game Button
+                ElevatedButton(
+                  onPressed: () {
+                    controller.hideInstructions();
+                    Get.back();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.blue.shade900,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 48,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 5,
+                  ),
+                  child: const Text(
+                    'Start Game',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Click to start playing!',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  Widget _buildInstructionStep(String number, String text, IconData icon) {
+    return Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: TextStyle(
+                color: Colors.blue.shade900,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Icon(
+          icon,
+          color: Colors.white,
+          size: 24,
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -451,23 +637,44 @@ class GameView extends GetView<GameController> {
     return Center(
       child: Column(
         children: [
+          const Text(
+            "Scapia",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+              shadows: [
+                Shadow(
+                  color: Colors.black54,
+                  offset: Offset(2, 2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           Container(
-              padding: const EdgeInsets.all(10),
+              padding:
+                  const EdgeInsets.only(left: 10, right: 10, top: 4, bottom: 4),
               decoration: BoxDecoration(
                   color: Colors.black.withAlpha(100),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                      color: Colors.yellow.withAlpha(230), width: 2)),
+                      color: Colors.redAccent.withAlpha(50), width: 2)),
               child: Text(
                 "Current highest Score: ${controller.highScore.toString()}",
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white, fontSize: 14),
               )),
           const SizedBox(
-            height: 10,
+            height: 4,
           ),
           Text(
             "Your weekly score: ${controller.highScore.toString()}",
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          const SizedBox(
+            height: 10,
           )
         ],
       ),
@@ -685,7 +892,7 @@ class GameView extends GetView<GameController> {
                         size: 18,
                       );
                     },
-                  )
+                  ).animate().shake()
                 : null,
       ),
     );
@@ -777,23 +984,18 @@ class GameView extends GetView<GameController> {
                   scale: scale,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap:
-                            controller.gameState.value.isGameOver || !isEnabled
-                                ? null
-                                : () => controller.setUserInput(number),
-                        borderRadius: BorderRadius.circular(20),
-                        child: FittedBox(
-                          child: Opacity(
-                            opacity: isEnabled ? 1.0 : 0.5,
-                            child: Image.asset(
-                              'assets/images/${_getNumberImage(number)}',
-                              width: 45,
-                              height: 45,
-                              fit: BoxFit.contain,
-                            ),
+                    child: GestureDetector(
+                      onTap: controller.gameState.value.isGameOver || !isEnabled
+                          ? null
+                          : () => controller.setUserInput(number),
+                      child: FittedBox(
+                        child: Opacity(
+                          opacity: isEnabled ? 1.0 : 0.5,
+                          child: Image.asset(
+                            'assets/images/${_getNumberImage(number)}',
+                            width: 45,
+                            height: 45,
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
@@ -837,18 +1039,32 @@ class GameView extends GetView<GameController> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.yellow.withAlpha(204),
-                Colors.white.withAlpha(153),
+                Colors.amber.shade300,
+                Colors.yellow.shade400,
+                Colors.amber.shade200,
               ],
             ),
+            isTransparent: false,
+            isInverted: true,
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'To win: $targetScore',
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
+          child: SizedBox(
+            height: 30,
+            width: 150,
+            child: Center(
+              child: Text(
+                'To win: $targetScore',
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  shadows: [
+                    Shadow(
+                      color: Colors.white,
+                      offset: Offset(1, 1),
+                      blurRadius: 2,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
