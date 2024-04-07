@@ -5,7 +5,7 @@ import 'package:get_storage/get_storage.dart';
 import '../../../services/sound_service.dart';
 
 enum Difficulty { easy, medium, hard }
-enum AnimationState { idle, reveal, celebrate, lose }
+enum AnimationState { idle, reveal, celebrate, lose, sixer }
 
 class GameController extends GetxController {
   static const String prefHighScore = 'highScore';
@@ -124,14 +124,16 @@ class GameController extends GetxController {
         val.userScoreHistory[val.ballsDelivered - 1] = input;
         val.gameStatus = 'You scored $input runs!';
         _soundService.playButtonClick();
-        _animationTimer?.cancel();
-        _animationTimer = Timer(const Duration(milliseconds: 1500), () {
-          gameState.update((state) {
-            state?.userInput = 0;
-            state?.botInput = 0;
-          });
-        });
         
+        // Show sixer animation if user scores 6
+        if (input == 6) {
+          animationState.value = AnimationState.sixer;
+          _animationTimer?.cancel();
+          _animationTimer = Timer(const Duration(seconds: 2), () {
+            animationState.value = AnimationState.idle;
+          });
+        }
+
         if (val.ballsDelivered >= 6) {
           _switchToBotBatting(val);
         }
@@ -140,13 +142,15 @@ class GameController extends GetxController {
         val.botScoreHistory[val.ballsDelivered - 1] = botInput;
         val.gameStatus = 'Bot scored $botInput runs!';
         _soundService.playButtonClick();
-        _animationTimer?.cancel();
-        _animationTimer = Timer(const Duration(milliseconds: 1500), () {
-          gameState.update((state) {
-            state?.userInput = 0;
-            state?.botInput = 0;
+
+        // Show sixer animation if bot scores 6
+        if (botInput == 6) {
+          animationState.value = AnimationState.sixer;
+          _animationTimer?.cancel();
+          _animationTimer = Timer(const Duration(seconds: 2), () {
+            animationState.value = AnimationState.idle;
           });
-        });
+        }
         
         if (val.ballsDelivered >= 6) {
           _endGame(val);
