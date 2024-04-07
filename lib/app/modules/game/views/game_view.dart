@@ -339,6 +339,8 @@ class GameView extends GetView<GameController> {
         imageAsset = 'assets/images/out.png';
       } else if (animState == AnimationState.sixer) {
         imageAsset = 'assets/images/sixer.png';
+      } else if (animState == AnimationState.out) {
+        imageAsset = 'assets/images/out.png';
       }
 
       if (imageAsset == null) return const SizedBox.shrink();
@@ -358,7 +360,7 @@ class GameView extends GetView<GameController> {
                   child: child,
                 );
               },
-              child: animState == AnimationState.sixer
+              child: (animState == AnimationState.sixer || animState == AnimationState.out)
                   ? Container(
                       width: Get.width * 0.8,
                       height: Get.width * 0.8,

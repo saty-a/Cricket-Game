@@ -2,10 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import '../../../services/sound_service.dart';
 
 enum Difficulty { easy, medium, hard }
-enum AnimationState { idle, reveal, celebrate, lose, sixer }
+enum AnimationState { idle, reveal, celebrate, lose, sixer, out }
 
 class GameController extends GetxController {
   static const String prefHighScore = 'highScore';
@@ -16,7 +15,6 @@ class GameController extends GetxController {
 
   final _storage = GetStorage();
   final _random = Random();
-  final _soundService = Get.find<SoundService>();
 
   final gameState = GameState().obs;
   final difficulty = Difficulty.medium.obs;
@@ -125,7 +123,6 @@ class GameController extends GetxController {
         val.userScore += input;
         val.userScoreHistory[val.ballsDelivered - 1] = input;
         val.gameStatus = 'You scored $input runs!';
-        _soundService.playButtonClick();
         
         // Show sixer animation if user scores 6
         if (input == 6) {
@@ -143,7 +140,6 @@ class GameController extends GetxController {
         val.botScore += botInput;
         val.botScoreHistory[val.ballsDelivered - 1] = botInput;
         val.gameStatus = 'Bot scored $botInput runs!';
-        _soundService.playButtonClick();
 
         // Show sixer animation if bot scores 6
         if (botInput == 6) {
@@ -193,7 +189,6 @@ class GameController extends GetxController {
   void _switchToBotBatting(GameState state) {
     state.isUserBatting = false;
     state.gameStatus = 'Your innings complete! Bot is batting now.';
-    _soundService.playOut();
     animationState.value = AnimationState.reveal;
     state.userInput = 0;
     state.botInput = 0;
@@ -216,17 +211,25 @@ class GameController extends GetxController {
 
   void _handleOut(GameState state) {
     if (state.isUserBatting) {
-      _switchToBotBatting(state);
+      animationState.value = AnimationState.out;
+      _animationTimer?.cancel();
+      _animationTimer = Timer(const Duration(seconds: 2), () {
+        animationState.value = AnimationState.idle;
+        _switchToBotBatting(state);
+      });
     } else {
-      _soundService.playWin();
       animationState.value = AnimationState.celebrate;
       _endGame(state);
     }
   }
 
   void _checkGameOver(GameState state) {
-    if (!state.isUserBatting && state.botScore > state.userScore) {
-      _endGame(state);
+    if (!state.isUserBatting) {
+      if (state.botScore > state.userScore) {
+        _endGame(state);
+      } else if (state.botScore == state.userScore) {
+        _endGame(state);
+      }
     }
   }
 
