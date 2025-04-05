@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:rive/rive.dart';
 import '../controllers/game_controller.dart';
 
 class GameView extends GetView<GameController> {
@@ -44,6 +45,7 @@ class GameView extends GetView<GameController> {
           children: [
             _buildStats(),
             _buildScoreBoard(),
+            _buildHandGestures(),
             _buildGameStatus(),
             _buildTimer(),
             const Spacer(),
@@ -53,6 +55,86 @@ class GameView extends GetView<GameController> {
         ),
       ),
     );
+  }
+
+  Widget _buildHandGestures() {
+    return Container(
+      height: 200,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildPlayerHand(),
+          _buildBotHand(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerHand() {
+    return Obx(() {
+      final input = controller.gameState.value.userInput;
+      return Transform.scale(
+        scale: 1.2,
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              input == 0 ? '?' : input.toString(),
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildBotHand() {
+    return Obx(() {
+      final input = controller.gameState.value.botInput;
+      return Transform.scale(
+        scale: 1.2,
+        child: Container(
+          width: 120,
+          height: 120,
+          decoration: BoxDecoration(
+            color: Colors.red.shade100,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              input == 0 ? '?' : input.toString(),
+              style: const TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildStats() {
@@ -211,59 +293,9 @@ class GameView extends GetView<GameController> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          Obx(() => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNumberDisplay(
-                'Your Input',
-                controller.gameState.value.userInput,
-              ),
-              _buildNumberDisplay(
-                'Bot\'s Input',
-                controller.gameState.value.botInput,
-              ),
-            ],
-          )),
-          const SizedBox(height: 20),
           _buildNumberButtons(),
         ],
       ),
-    );
-  }
-
-  Widget _buildNumberDisplay(String title, int number) {
-    return Column(
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: Colors.blue.shade200,
-            borderRadius: BorderRadius.circular(30),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              number.toString(),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 

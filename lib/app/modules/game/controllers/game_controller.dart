@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 enum Difficulty { easy, medium, hard }
+enum AnimationState { idle, reveal, celebrate, lose }
 
 class GameController extends GetxController {
   static const String prefHighScore = 'highScore';
@@ -19,8 +20,10 @@ class GameController extends GetxController {
   final highScore = 0.obs;
   final gamesPlayed = 0.obs;
   final gamesWon = 0.obs;
+  final animationState = AnimationState.idle.obs;
 
   Timer? _timer;
+  Timer? _animationTimer;
 
   @override
   void onInit() {
@@ -32,6 +35,7 @@ class GameController extends GetxController {
   @override
   void onClose() {
     _timer?.cancel();
+    _animationTimer?.cancel();
     super.onClose();
   }
 
@@ -57,9 +61,11 @@ class GameController extends GetxController {
 
   void startNewGame() {
     _timer?.cancel();
+    _animationTimer?.cancel();
     gameState.value = GameState()
       ..isUserBatting = true
       ..timeLeft = 5;
+    animationState.value = AnimationState.idle;
     _startTimer();
   }
 
@@ -90,25 +96,30 @@ class GameController extends GetxController {
     _timer?.cancel();
     final botInput = _getBotInput();
     
-    gameState.update((val) {
-      val?.userInput = input;
-      val?.botInput = botInput;
-      val?.timeLeft = 5;
+    animationState.value = AnimationState.reveal;
+    _animationTimer?.cancel();
+    _animationTimer = Timer(const Duration(milliseconds: 500), () {
+      gameState.update((val) {
+        val?.userInput = input;
+        val?.botInput = botInput;
+        val?.timeLeft = 5;
 
-      if (input == botInput) {
-        _handleOut(val!);
-      } else if (val?.isUserBatting ?? false) {
-        val?.userScore += input;
-      } else {
-        val?.botScore += botInput;
+        if (input == botInput) {
+          _handleOut(val!);
+        } else if (val?.isUserBatting ?? false) {
+          val?.userScore += input;
+        } else {
+          val?.botScore += botInput;
+        }
+
+        _checkGameOver(val!);
+      });
+
+      if (!gameState.value.isGameOver) {
+        animationState.value = AnimationState.idle;
+        _startTimer();
       }
-
-      _checkGameOver(val!);
     });
-
-    if (!gameState.value.isGameOver) {
-      _startTimer();
-    }
   }
 
   int _getBotInput() {
@@ -156,10 +167,13 @@ class GameController extends GetxController {
     if (state.userScore > state.botScore) {
       state.gameStatus = 'You won! 🎉';
       gamesWon.value++;
+      animationState.value = AnimationState.celebrate;
     } else if (state.userScore < state.botScore) {
       state.gameStatus = 'Bot won! Try again.';
+      animationState.value = AnimationState.lose;
     } else {
       state.gameStatus = 'It\'s a tie!';
+      animationState.value = AnimationState.idle;
     }
 
     if (state.userScore > highScore.value) {
