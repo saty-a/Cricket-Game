@@ -19,11 +19,30 @@ class GameView extends GetView<GameController> {
             icon: const Icon(Icons.refresh),
             onPressed: controller.startNewGame,
           ),
+          PopupMenuButton<Difficulty>(
+            icon: const Icon(Icons.settings),
+            onSelected: controller.setDifficulty,
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: Difficulty.easy,
+                child: Text('Easy'),
+              ),
+              const PopupMenuItem(
+                value: Difficulty.medium,
+                child: Text('Medium'),
+              ),
+              const PopupMenuItem(
+                value: Difficulty.hard,
+                child: Text('Hard'),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
+            _buildStats(),
             _buildScoreBoard(),
             _buildGameStatus(),
             _buildTimer(),
@@ -33,6 +52,51 @@ class GameView extends GetView<GameController> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStats() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          Obx(() => _buildStatItem(
+            'High Score',
+            controller.highScore.toString(),
+          )),
+          Obx(() => _buildStatItem(
+            'Games Won',
+            '${controller.gamesWon}/${controller.gamesPlayed}',
+          )),
+          Obx(() => _buildStatItem(
+            'Win Rate',
+            '${controller.winRate.toStringAsFixed(1)}%',
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 
@@ -51,21 +115,33 @@ class GameView extends GetView<GameController> {
           ),
         ],
       ),
-      child: Obx(() => Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Column(
         children: [
-          _buildScoreCard(
-            'You',
-            controller.gameState.value.userScore,
-            controller.gameState.value.isUserBatting,
-          ),
-          _buildScoreCard(
-            'Bot',
-            controller.gameState.value.botScore,
-            !controller.gameState.value.isUserBatting,
-          ),
+          Obx(() => Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildScoreCard(
+                'You',
+                controller.gameState.value.userScore,
+                controller.gameState.value.isUserBatting,
+              ),
+              _buildScoreCard(
+                'Bot',
+                controller.gameState.value.botScore,
+                !controller.gameState.value.isUserBatting,
+              ),
+            ],
+          )),
+          const SizedBox(height: 8),
+          Obx(() => Text(
+            'Difficulty: ${controller.difficulty.value.name.capitalizeFirst}',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          )),
         ],
-      )),
+      ),
     );
   }
 

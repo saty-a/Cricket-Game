@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   get: ^4.7.2
   rive: ^0.11.17
-  shared_preferences: ^2.2.2
+  get_storage: ^2.1.1
 
 dev_dependencies:
   flutter_test:
