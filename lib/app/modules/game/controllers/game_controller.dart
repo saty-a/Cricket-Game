@@ -1,20 +1,31 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:get/get.dart';
-import '../../../data/models/game_state.dart';
+import 'package:get_storage/get_storage.dart';
+
+enum Difficulty { easy, medium, hard }
 
 class GameController extends GetxController {
-  static const int maxScore = 50;
-  static const int maxBalls = 6;
-  static const int inputTimeLimit = 10;
+  static const String prefHighScore = 'highScore';
+  static const String prefGamesPlayed = 'gamesPlayed';
+  static const String prefGamesWon = 'gamesWon';
+  static const String prefDifficulty = 'difficulty';
 
-  final Rx<GameState> gameState = GameState().obs;
+  final _storage = GetStorage();
+  final _random = Random();
+
+  final gameState = GameState().obs;
+  final difficulty = Difficulty.medium.obs;
+  final highScore = 0.obs;
+  final gamesPlayed = 0.obs;
+  final gamesWon = 0.obs;
+
   Timer? _timer;
-  final Random _random = Random();
 
   @override
   void onInit() {
     super.onInit();
+    _initStorage();
     startNewGame();
   }
 
@@ -24,117 +35,154 @@ class GameController extends GetxController {
     super.onClose();
   }
 
-  void startNewGame() {
-    gameState.value = GameState(
-      gameStatus: 'Your turn to bat!',
-      timeLeft: inputTimeLimit,
-    );
-    startTimer();
+  void _initStorage() {
+    highScore.value = _storage.read(prefHighScore) ?? 0;
+    gamesPlayed.value = _storage.read(prefGamesPlayed) ?? 0;
+    gamesWon.value = _storage.read(prefGamesWon) ?? 0;
+    difficulty.value = Difficulty.values[_storage.read(prefDifficulty) ?? 1];
   }
 
-  void startTimer() {
+  void _updateStorage() {
+    _storage.write(prefHighScore, highScore.value);
+    _storage.write(prefGamesPlayed, gamesPlayed.value);
+    _storage.write(prefGamesWon, gamesWon.value);
+    _storage.write(prefDifficulty, difficulty.value.index);
+  }
+
+  void setDifficulty(Difficulty newDifficulty) {
+    difficulty.value = newDifficulty;
+    _updateStorage();
+    startNewGame();
+  }
+
+  void startNewGame() {
+    _timer?.cancel();
+    gameState.value = GameState()
+      ..isUserBatting = true
+      ..timeLeft = 5;
+    _startTimer();
+  }
+
+  void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (gameState.value.timeLeft > 0) {
-        gameState.value = gameState.value.copyWith(
-          timeLeft: gameState.value.timeLeft - 1,
-        );
+        gameState.update((val) {
+          val?.timeLeft--;
+        });
       } else {
-        handleTimeOut();
+        _handleTimeout();
       }
     });
   }
 
-  void handleTimeOut() {
+  void _handleTimeout() {
     _timer?.cancel();
     if (!gameState.value.isGameOver) {
-      gameState.value = gameState.value.copyWith(
-        isGameOver: true,
-        gameStatus: 'Time out! You lose!',
-      );
+      final botInput = _getBotInput();
+      setUserInput(botInput);
     }
   }
 
-  void setUserInput(int number) {
-    if (number < 1 || number > 6 || gameState.value.isGameOver) return;
+  void setUserInput(int input) {
+    if (input < 1 || input > 6 || gameState.value.isGameOver) return;
 
-    final botNumber = _random.nextInt(6) + 1;
-    gameState.value = gameState.value.copyWith(
-      userInput: number,
-      botInput: botNumber,
-    );
-
-    processGameLogic();
-  }
-
-  void processGameLogic() {
-    if (gameState.value.userInput == gameState.value.botInput) {
-      handleOut();
-    } else {
-      if (gameState.value.isUserBatting) {
-        gameState.value = gameState.value.copyWith(
-          userScore: gameState.value.userScore + gameState.value.userInput,
-          ballsPlayed: gameState.value.ballsPlayed + 1,
-        );
-      } else {
-        gameState.value = gameState.value.copyWith(
-          botScore: gameState.value.botScore + gameState.value.botInput,
-          ballsPlayed: gameState.value.ballsPlayed + 1,
-        );
-      }
-
-      if (gameState.value.ballsPlayed >= maxBalls) {
-        switchInnings();
-      }
-    }
-
-    startTimer();
-    checkGameOver();
-  }
-
-  void handleOut() {
-    final newStatus = gameState.value.isUserBatting
-        ? 'Out! Bot\'s turn to bat'
-        : 'Bot is out!';
+    _timer?.cancel();
+    final botInput = _getBotInput();
     
-    switchInnings();
-    
-    gameState.value = gameState.value.copyWith(
-      gameStatus: newStatus,
-    );
-  }
+    gameState.update((val) {
+      val?.userInput = input;
+      val?.botInput = botInput;
+      val?.timeLeft = 5;
 
-  void switchInnings() {
-    if (gameState.value.isUserBatting) {
-      gameState.value = gameState.value.copyWith(
-        isUserBatting: false,
-        ballsPlayed: 0,
-        gameStatus: 'Bot is batting!',
-      );
-    } else {
-      checkGameOver();
-    }
-  }
-
-  void checkGameOver() {
-    if (!gameState.value.isUserBatting &&
-        (gameState.value.botScore > gameState.value.userScore ||
-            gameState.value.ballsPlayed >= maxBalls)) {
-      _timer?.cancel();
-      
-      String finalStatus;
-      if (gameState.value.userScore > gameState.value.botScore) {
-        finalStatus = 'You win! 🎉';
-      } else if (gameState.value.userScore < gameState.value.botScore) {
-        finalStatus = 'Bot wins! 😢';
+      if (input == botInput) {
+        _handleOut(val!);
+      } else if (val?.isUserBatting ?? false) {
+        val?.userScore += input;
       } else {
-        finalStatus = 'It\'s a tie! 🤝';
+        val?.botScore += botInput;
       }
 
-      gameState.value = gameState.value.copyWith(
-        isGameOver: true,
-        gameStatus: finalStatus,
-      );
+      _checkGameOver(val!);
+    });
+
+    if (!gameState.value.isGameOver) {
+      _startTimer();
     }
   }
-} 
+
+  int _getBotInput() {
+    switch (difficulty.value) {
+      case Difficulty.easy:
+        return _random.nextInt(6) + 1;
+      case Difficulty.medium:
+        if (_random.nextDouble() < 0.4) {
+          return gameState.value.userInput;
+        }
+        return _random.nextInt(6) + 1;
+      case Difficulty.hard:
+        if (_random.nextDouble() < 0.6) {
+          return gameState.value.userInput;
+        }
+        if (!gameState.value.isUserBatting) {
+          return _random.nextInt(3) + 4;
+        }
+        return _random.nextInt(6) + 1;
+    }
+  }
+
+  void _handleOut(GameState state) {
+    if (state.isUserBatting) {
+      state.isUserBatting = false;
+      state.gameStatus = 'You\'re out! Bot is batting now.';
+      if (state.botScore > state.userScore) {
+        _endGame(state);
+      }
+    } else {
+      _endGame(state);
+    }
+  }
+
+  void _checkGameOver(GameState state) {
+    if (!state.isUserBatting && state.botScore > state.userScore) {
+      _endGame(state);
+    }
+  }
+
+  void _endGame(GameState state) {
+    state.isGameOver = true;
+    _timer?.cancel();
+
+    if (state.userScore > state.botScore) {
+      state.gameStatus = 'You won! 🎉';
+      gamesWon.value++;
+    } else if (state.userScore < state.botScore) {
+      state.gameStatus = 'Bot won! Try again.';
+    } else {
+      state.gameStatus = 'It\'s a tie!';
+    }
+
+    if (state.userScore > highScore.value) {
+      highScore.value = state.userScore;
+    }
+
+    gamesPlayed.value++;
+    _updateStorage();
+  }
+
+  double get winRate {
+    if (gamesPlayed.value == 0) return 0;
+    return (gamesWon.value / gamesPlayed.value) * 100;
+  }
+}
+
+class GameState {
+  bool isUserBatting = true;
+  bool isGameOver = false;
+  int userScore = 0;
+  int botScore = 0;
+  int userInput = 0;
+  int botInput = 0;
+  int timeLeft = 5;
+  String gameStatus = 'Your turn to bat!';
+}
