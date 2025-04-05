@@ -9,7 +9,10 @@ class GameView extends GetView<GameController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hand Cricket'),
+        title: const Text(
+          'Hand Cricket',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -48,34 +51,51 @@ class GameView extends GetView<GameController> {
           ),
         ],
       ),
-      child: Row(
+      child: Obx(() => Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildScoreCard('You', controller.userScore),
-          _buildScoreCard('Bot', controller.botScore),
+          _buildScoreCard(
+            'You',
+            controller.gameState.value.userScore,
+            controller.gameState.value.isUserBatting,
+          ),
+          _buildScoreCard(
+            'Bot',
+            controller.gameState.value.botScore,
+            !controller.gameState.value.isUserBatting,
+          ),
         ],
-      ),
+      )),
     );
   }
 
-  Widget _buildScoreCard(String title, RxInt score) {
+  Widget _buildScoreCard(String title, int score, bool isBatting) {
     return Column(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (isBatting)
+              const Padding(
+                padding: EdgeInsets.only(left: 8.0),
+                child: Icon(Icons.sports_cricket, color: Colors.blue),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
-        Obx(() => Text(
+        Text(
           score.toString(),
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
-        )),
+        ),
       ],
     );
   }
@@ -84,7 +104,7 @@ class GameView extends GetView<GameController> {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Obx(() => Text(
-        controller.gameStatus.value,
+        controller.gameState.value.gameStatus,
         style: const TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
@@ -98,10 +118,12 @@ class GameView extends GetView<GameController> {
     return Container(
       padding: const EdgeInsets.all(8),
       child: Obx(() => Text(
-        'Time left: ${controller.timeLeft}s',
+        'Time left: ${controller.gameState.value.timeLeft}s',
         style: TextStyle(
           fontSize: 18,
-          color: controller.timeLeft.value <= 3 ? Colors.red : Colors.black,
+          color: controller.gameState.value.timeLeft <= 3
+              ? Colors.red
+              : Colors.black,
           fontWeight: FontWeight.bold,
         ),
       )),
@@ -116,8 +138,14 @@ class GameView extends GetView<GameController> {
           Obx(() => Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildNumberDisplay('Your Input', controller.userInput.value),
-              _buildNumberDisplay('Bot\'s Input', controller.botInput.value),
+              _buildNumberDisplay(
+                'Your Input',
+                controller.gameState.value.userInput,
+              ),
+              _buildNumberDisplay(
+                'Bot\'s Input',
+                controller.gameState.value.botInput,
+              ),
             ],
           )),
           const SizedBox(height: 20),
@@ -141,6 +169,13 @@ class GameView extends GetView<GameController> {
           decoration: BoxDecoration(
             color: Colors.blue.shade200,
             borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Center(
             child: Text(
@@ -163,7 +198,7 @@ class GameView extends GetView<GameController> {
       children: List.generate(6, (index) {
         final number = index + 1;
         return ElevatedButton(
-          onPressed: controller.isGameOver.value
+          onPressed: controller.gameState.value.isGameOver
               ? null
               : () => controller.setUserInput(number),
           style: ElevatedButton.styleFrom(
@@ -171,6 +206,7 @@ class GameView extends GetView<GameController> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
+            elevation: 4,
           ),
           child: Text(
             number.toString(),
