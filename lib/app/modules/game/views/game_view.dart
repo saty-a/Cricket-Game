@@ -17,54 +17,29 @@ class GameView extends GetView<GameController> {
               image: const AssetImage('assets/images/background.png'),
               fit: BoxFit.cover,
               colorFilter: ColorFilter.mode(
-                Colors.black.withOpacity(0.7),
+                Colors.black.withAlpha(178),
                 BlendMode.darken,
               ),
             ),
           ),
           child: Scaffold(
             backgroundColor: Colors.transparent,
-            appBar: AppBar(
-              backgroundColor: Colors.white.withOpacity(0.9),
-              title: const Text(
-                'Hand Cricket',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              centerTitle: true,
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: controller.startNewGame,
-                ),
-                PopupMenuButton<Difficulty>(
-                  icon: const Icon(Icons.settings),
-                  onSelected: controller.setDifficulty,
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: Difficulty.easy,
-                      child: Text('Easy'),
-                    ),
-                    const PopupMenuItem(
-                      value: Difficulty.medium,
-                      child: Text('Medium'),
-                    ),
-                    const PopupMenuItem(
-                      value: Difficulty.hard,
-                      child: Text('Hard'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
             body: SafeArea(
-              child: Wrap(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildStats(),
-                  _buildScoreBoard(),
-                  _buildHandGestures(),
-                  _buildGameStatus(),
-                  _buildTimer(),
-                  const Spacer(),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Wrap(
+                        children: [
+                          _buildStats(),
+                          _buildScoreBoard(),
+                          _buildTargetScore(),
+                          _buildHandGestures(),
+                        ],
+                      ),
+                    ),
+                  ),
                   _buildInputArea(),
                 ],
               ),
@@ -72,6 +47,7 @@ class GameView extends GetView<GameController> {
           ),
         ),
         _buildOverlayAnimation(),
+        _buildGameOverOverlay(),
       ],
     );
   }
@@ -80,9 +56,10 @@ class GameView extends GetView<GameController> {
     return Obx(() {
       final gameState = controller.gameState.value;
       final animState = controller.animationState.value;
-      
+      final isFirstBall = gameState.ballsDelivered == 0;
+
       String? imageAsset;
-      if (animState == AnimationState.reveal) {
+      if (animState == AnimationState.reveal && isFirstBall) {
         if (gameState.isUserBatting) {
           imageAsset = 'assets/images/batting.png';
         } else {
@@ -98,7 +75,7 @@ class GameView extends GetView<GameController> {
         duration: const Duration(milliseconds: 300),
         opacity: 1.0,
         child: Container(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black.withAlpha(178),
           child: Center(
             child: TweenAnimationBuilder<double>(
               duration: const Duration(milliseconds: 500),
@@ -122,36 +99,186 @@ class GameView extends GetView<GameController> {
     });
   }
 
-  Widget _buildHandGestures() {
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Glowing circle background
-          Container(
-            width: 220,
-            height: 220,
+  Widget _buildGameOverOverlay() {
+    return Obx(() {
+      if (!controller.gameState.value.isGameOver)
+        return const SizedBox.shrink();
+
+      final userWon = controller.gameState.value.userScore >
+          controller.gameState.value.botScore;
+
+      return Container(
+        color: Colors.black.withAlpha(178),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.blue.withOpacity(0.3),
-                  blurRadius: 50,
-                  spreadRadius: 20,
+              color: Colors.white.withAlpha(26),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: userWon
+                    ? Colors.amber.withAlpha(230)
+                    : Colors.grey.withAlpha(178),
+                width: 2,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  userWon ? '🎉 You Won! 🎉' : '😢 Game Over',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: userWon
+                        ? Colors.amber.withAlpha(230)
+                        : Colors.white.withAlpha(230),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildStatRow('Your Score',
+                    controller.gameState.value.userScore.toString()),
+                _buildStatRow('Bot Score',
+                    controller.gameState.value.botScore.toString()),
+                _buildStatRow('High Score', controller.highScore.toString()),
+                _buildStatRow('Games Won',
+                    '${controller.gamesWon}/${controller.gamesPlayed}'),
+                _buildStatRow(
+                    'Win Rate', '${controller.winRate.toStringAsFixed(1)}%'),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: controller.startNewGame,
+                      icon: const Icon(Icons.replay),
+                      label: const Text('Play Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.withAlpha(230),
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    OutlinedButton.icon(
+                      onPressed: () => Get.back(),
+                      icon: const Icon(Icons.exit_to_app),
+                      label: const Text('Exit'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white.withAlpha(230),
+                        side: BorderSide(color: Colors.white.withAlpha(230)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildPlayerHand(),
-              _buildBotHand(),
-            ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.white70,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHandGestures() {
+    return Container(
+      height: Get.width * 0.55,
+      padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.black.withAlpha(20),
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            width: 2,
+            color: Colors.transparent,
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.amber.withAlpha(100),
+              Colors.yellow.withAlpha(100),
+            ],
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withAlpha(77),
+            borderRadius: BorderRadius.circular(28),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              GestureDetector(
+                onTapDown: (_) => controller.setHandScale(0.9),
+                onTapUp: (_) => controller.setHandScale(1.0),
+                onTapCancel: () => controller.setHandScale(1.0),
+                child: Obx(() => Transform.scale(
+                      scale: controller.handScale.value,
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.rotationY(3.14159),
+                        child: Transform.translate(
+                          offset: const Offset(40, 0),
+                          child: _buildPlayerHand(),
+                        ),
+                      ),
+                    )),
+              ),
+              GestureDetector(
+                onTapDown: (_) => controller.setHandScale(0.9),
+                onTapUp: (_) => controller.setHandScale(1.0),
+                onTapCancel: () => controller.setHandScale(1.0),
+                child: Obx(() => Transform.scale(
+                      scale: controller.handScale.value,
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.rotationY(3.14159),
+                        child: Transform.translate(
+                          offset: const Offset(-40, 0),
+                          child: _buildBotHand(),
+                        ),
+                      ),
+                    )),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -159,12 +286,15 @@ class GameView extends GetView<GameController> {
   Widget _buildPlayerHand() {
     return Obx(() {
       final input = controller.gameState.value.userInput;
-      final isRevealing = controller.animationState.value == AnimationState.reveal;
-      final isCelebrating = controller.animationState.value == AnimationState.celebrate;
-      
+      final isRevealing =
+          controller.animationState.value == AnimationState.reveal;
+      final isCelebrating =
+          controller.animationState.value == AnimationState.celebrate;
+
       Widget handWidget;
       if (isCelebrating) {
-        handWidget = Image.asset('assets/images/you_won.png', width: 120, height: 120);
+        handWidget =
+            Image.asset('assets/images/you_won.png', width: 120, height: 120);
       } else {
         handWidget = SizedBox(
           width: 120,
@@ -176,23 +306,10 @@ class GameView extends GetView<GameController> {
           ),
         );
       }
-
       return AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
         opacity: isRevealing ? 0.0 : 1.0,
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.blue.withOpacity(0.3),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: handWidget,
-        ),
+        child: handWidget,
       );
     });
   }
@@ -200,12 +317,14 @@ class GameView extends GetView<GameController> {
   Widget _buildBotHand() {
     return Obx(() {
       final input = controller.gameState.value.botInput;
-      final isRevealing = controller.animationState.value == AnimationState.reveal;
+      final isRevealing =
+          controller.animationState.value == AnimationState.reveal;
       final isLosing = controller.animationState.value == AnimationState.lose;
-      
+
       Widget handWidget;
       if (isLosing) {
-        handWidget = Image.asset('assets/images/out.png', width: 120, height: 120);
+        handWidget =
+            Image.asset('assets/images/out.png', width: 120, height: 120);
       } else {
         handWidget = SizedBox(
           width: 120,
@@ -223,329 +342,414 @@ class GameView extends GetView<GameController> {
       }
 
       return AnimatedOpacity(
-        duration: const Duration(milliseconds: 300),
-        opacity: isRevealing ? 0.0 : 1.0,
-        child: Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.3),
-                blurRadius: 20,
-                spreadRadius: 5,
-              ),
-            ],
-          ),
-          child: handWidget,
-        ),
-      );
+          duration: const Duration(milliseconds: 300),
+          opacity: isRevealing ? 0.0 : 1.0,
+          child: handWidget);
     });
   }
 
   Widget _buildStats() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Center(
+      child: Column(
         children: [
-          Obx(() => _buildStatItem(
-            'High Score',
-            controller.highScore.toString(),
-          )),
-          Obx(() => _buildStatItem(
-            'Games Won',
-            '${controller.gamesWon}/${controller.gamesPlayed}',
-          )),
-          Obx(() => _buildStatItem(
-            'Win Rate',
-            '${controller.winRate.toStringAsFixed(1)}%',
-          )),
+          Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: Colors.black.withAlpha(100),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: Colors.yellow.withAlpha(230), width: 2)),
+              child: Text(
+                "Current highest Score: ${controller.highScore.toString()}",
+                style: const TextStyle(color: Colors.white),
+              )),
+          const SizedBox(
+            height: 10,
+          ),
+          Text(
+            "Your weekly score: ${controller.highScore.toString()}",
+            style: const TextStyle(color: Colors.white),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
-    return Column(
+  Widget _buildScoreBoard() {
+    return Row(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
+        // Player side (Left trapezoid)
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.amber.withAlpha(230),
+                  Colors.amber.withAlpha(220),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(77),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'You',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white.withAlpha(90),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Obx(() {
+                  final score = controller.gameState.value.userScore;
+                  final isBatting = controller.gameState.value.isUserBatting;
+                  final ballsDelivered =
+                      controller.gameState.value.ballsDelivered;
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          final isActive = isBatting
+                              ? (score > index * 10)
+                              : // Fill based on score when batting
+                              (ballsDelivered >
+                                  index); // Fill based on balls when bowling
+
+                          return Container(
+                            width: 40,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive
+                                  ? Colors.green.withAlpha(204)
+                                  : Colors.grey.shade800.withAlpha(230),
+                              border: Border.all(
+                                color: Colors.white.withAlpha(77),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isActive
+                                      ? Colors.green.withAlpha(77)
+                                      : Colors.transparent,
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: isBatting && isActive
+                                  ? Text(
+                                      '${(index + 1) * 10}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : !isBatting && isActive
+                                      ? Image.asset(
+                                          'assets/images/ball.png',
+                                          width: 24,
+                                          height: 24,
+                                        )
+                                      : null,
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          final isActive = isBatting
+                              ? (score > (index + 3) * 10)
+                              : // Fill based on score when batting
+                              (ballsDelivered >
+                                  index +
+                                      3); // Fill based on balls when bowling
+
+                          return Container(
+                            width: 40,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive
+                                  ? Colors.green.withAlpha(204)
+                                  : Colors.grey.shade800.withAlpha(230),
+                              border: Border.all(
+                                color: Colors.white.withAlpha(77),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isActive
+                                      ? Colors.green.withAlpha(77)
+                                      : Colors.transparent,
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: isBatting && isActive
+                                  ? Text(
+                                      '${(index + 4) * 10}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : !isBatting && isActive
+                                      ? Image.asset(
+                                          'assets/images/ball.png',
+                                          width: 24,
+                                          height: 24,
+                                        )
+                                      : null,
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+        // Space between trapezoids
+        const SizedBox(width: 20),
+        // Bot side (Right trapezoid)
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.amber.withAlpha(230),
+                  Colors.amber.withAlpha(220),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(77),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Bot',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white.withAlpha(90),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Obx(() {
+                  final score = controller.gameState.value.botScore;
+                  final isBatting = !controller.gameState.value.isUserBatting;
+                  final ballsDelivered =
+                      controller.gameState.value.ballsDelivered;
+
+                  return Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          final isActive = isBatting
+                              ? (score > index * 10)
+                              : // Fill based on score when batting
+                              (ballsDelivered >
+                                  index); // Fill based on balls when bowling
+
+                          return Container(
+                            width: 40,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive
+                                  ? Colors.red.withAlpha(204)
+                                  : Colors.grey.shade800.withAlpha(230),
+                              border: Border.all(
+                                color: Colors.white.withAlpha(77),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isActive
+                                      ? Colors.red.withAlpha(77)
+                                      : Colors.transparent,
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: isBatting && isActive
+                                  ? Text(
+                                      '${(index + 1) * 10}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : !isBatting && isActive
+                                      ? Image.asset(
+                                          'assets/images/ball.png',
+                                          width: 24,
+                                          height: 24,
+                                        )
+                                      : null,
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(3, (index) {
+                          final isActive = isBatting
+                              ? (score > (index + 3) * 10)
+                              : // Fill based on score when batting
+                              (ballsDelivered >
+                                  index +
+                                      3); // Fill based on balls when bowling
+
+                          return Container(
+                            width: 40,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isActive
+                                  ? Colors.red.withAlpha(204)
+                                  : Colors.grey.shade800.withAlpha(230),
+                              border: Border.all(
+                                color: Colors.white.withAlpha(77),
+                                width: 2,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: isActive
+                                      ? Colors.red.withAlpha(77)
+                                      : Colors.transparent,
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: isBatting && isActive
+                                  ? Text(
+                                      '${(index + 4) * 10}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : !isBatting && isActive
+                                      ? Image.asset(
+                                          'assets/images/ball.png',
+                                          width: 24,
+                                          height: 24,
+                                        )
+                                      : null,
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  );
+                }),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildScoreBoard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withOpacity(0.95),
-            Colors.blue.withOpacity(0.2),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.2),
-            blurRadius: 15,
-            spreadRadius: 5,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Obx(() => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildScoreCard(
-                'You',
-                controller.gameState.value.userScore,
-                controller.gameState.value.isUserBatting,
-                Colors.blue,
-              ),
-              _buildVsWidget(),
-              _buildScoreCard(
-                'Bot',
-                controller.gameState.value.botScore,
-                !controller.gameState.value.isUserBatting,
-                Colors.red,
-              ),
-            ],
-          )),
-          const SizedBox(height: 12),
-          Obx(() => Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.speed, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Difficulty: ${controller.difficulty.value.name.capitalizeFirst}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVsWidget() {
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            Colors.orange.withOpacity(0.7),
-            Colors.red.withOpacity(0.3),
-          ],
-        ),
-      ),
-      child: const Center(
-        child: Text(
-          'VS',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScoreCard(String title, int score, bool isBatting, Color color) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isBatting ? color.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withOpacity(isBatting ? 0.5 : 0.2),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: color.withOpacity(0.8),
-                ),
-              ),
-              if (isBatting)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Image.asset(
-                    'assets/images/batting.png',
-                    width: 24,
-                    height: 24,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TweenAnimationBuilder<int>(
-            duration: const Duration(milliseconds: 500),
-            tween: IntTween(begin: 0, end: score),
-            builder: (context, value, child) {
-              return Text(
-                value.toString(),
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGameStatus() {
-    return Obx(() {
-      final status = controller.gameState.value.gameStatus;
-      final isGameOver = controller.gameState.value.isGameOver;
-      
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
-        margin: const EdgeInsets.symmetric(horizontal: 20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isGameOver
-              ? [Colors.purple.withOpacity(0.7), Colors.blue.withOpacity(0.7)]
-              : [Colors.black.withOpacity(0.6), Colors.blue.withOpacity(0.6)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: isGameOver ? Colors.purple.withOpacity(0.3) : Colors.blue.withOpacity(0.3),
-              blurRadius: 20,
-              spreadRadius: 5,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              status,
-              style: TextStyle(
-                fontSize: isGameOver ? 36 : 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    color: isGameOver ? Colors.purple : Colors.blue,
-                    blurRadius: 20,
-                    offset: const Offset(0, 0),
-                  ),
-                ],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (isGameOver) ...[
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: controller.startNewGame,
-                icon: const Icon(Icons.replay),
-                label: const Text('Play Again'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.purple,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildTimer() {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Obx(() => Text(
-        'Time left: ${controller.gameState.value.timeLeft}s',
-        style: TextStyle(
-          fontSize: 18,
-          color: controller.gameState.value.timeLeft <= 3
-              ? Colors.red
-              : Colors.black,
-          fontWeight: FontWeight.bold,
-        ),
-      )),
-    );
-  }
-
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            Colors.black.withOpacity(0.3),
+            Colors.black.withAlpha(178),
           ],
         ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Obx(() {
+            final timeLeft = controller.gameState.value.timeLeft;
+            final progress = timeLeft / 10.0;
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.grey.withAlpha(100),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Colors.redAccent,
+                    ),
+                    strokeWidth: 3,
+                  ),
+                ),
+                Text(
+                  '$timeLeft',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: timeLeft <= 3 ? Colors.red : Colors.white,
+                  ),
+                ),
+              ],
+            );
+          }),
+          const SizedBox(height: 16),
+          Text(
+            'Pick a number before time runs out!',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.white.withAlpha(230),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildNumberButtons(),
         ],
       ),
@@ -554,86 +758,121 @@ class GameView extends GetView<GameController> {
 
   Widget _buildNumberButtons() {
     return Obx(() => GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 3,
-      mainAxisSpacing: 15,
-      crossAxisSpacing: 15,
-      childAspectRatio: 1.2,
-      children: List.generate(6, (index) {
-        final number = index + 1;
-        final isSelected = controller.gameState.value.userInput == number;
-        
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isSelected
-                  ? [Colors.blue.withOpacity(0.8), Colors.purple.withOpacity(0.8)]
-                  : [Colors.black.withOpacity(0.6), Colors.blue.withOpacity(0.6)],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: isSelected
-                    ? Colors.blue.withOpacity(0.5)
-                    : Colors.black.withOpacity(0.3),
-                blurRadius: isSelected ? 15 : 10,
-                spreadRadius: isSelected ? 2 : 0,
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: controller.gameState.value.isGameOver
-                  ? null
-                  : () => controller.setUserInput(number),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                child: FittedBox(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/${_getNumberImage(number)}',
-                        width: 45,
-                        height: 45,
-                        fit: BoxFit.contain,
-                        color: Colors.white.withOpacity(0.9),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        number.toString(),
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white.withOpacity(0.9),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 3,
+          mainAxisSpacing: 15,
+          crossAxisSpacing: 15,
+          childAspectRatio: 1.2,
+          children: List.generate(6, (index) {
+            final number = index + 1;
+            final isSelected = controller.gameState.value.userInput == number;
+            return Obx(() {
+              final scale = isSelected ? 0.9 : 1.0;
+              return GestureDetector(
+                onTapDown: (_) => controller.setUserInput(number),
+                onTapUp: (_) => controller.setUserInput(0),
+                onTapCancel: () => controller.setUserInput(0),
+                child: Transform.scale(
+                  scale: scale,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: controller.gameState.value.isGameOver
+                            ? null
+                            : () => controller.setUserInput(number),
+                        borderRadius: BorderRadius.circular(20),
+                        child: FittedBox(
+                          child: Image.asset(
+                            'assets/images/${_getNumberImage(number)}',
+                            width: 45,
+                            height: 45,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        );
-      }),
-    ));
+              );
+            });
+          }),
+        ));
   }
 
   String _getNumberImage(int number) {
     switch (number) {
-      case 1: return 'one.png';
-      case 2: return 'two.png';
-      case 3: return 'three.png';
-      case 4: return 'four.png';
-      case 5: return 'five.png';
-      case 6: return 'six.png';
-      default: return 'one.png';
+      case 1:
+        return 'one.png';
+      case 2:
+        return 'two.png';
+      case 3:
+        return 'three.png';
+      case 4:
+        return 'four.png';
+      case 5:
+        return 'five.png';
+      case 6:
+        return 'six.png';
+      default:
+        return 'one.png';
     }
   }
-} 
+
+  Widget _buildTargetScore() {
+    return Obx(() {
+      final targetScore = controller.gameState.value.isUserBatting
+          ? controller.gameState.value.botScore + 1
+          : controller.gameState.value.userScore + 1;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          'To win: $targetScore',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class LeftTrapezoidClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, size.height); // Top-left
+    path.lineTo(size.width, size.height); // Top-right
+    path.lineTo(size.width, 0); // Bottom point (center)
+    path.lineTo(0, 0); // Bottom-left
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+class RightTrapezoidClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.moveTo(0, 0); // Top-left
+    path.lineTo(size.width, 0); // Top-right
+    path.lineTo(size.width, size.height); // Bottom-right
+    path.lineTo(size.width * 0.5, size.height); // Bottom point (center)
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}

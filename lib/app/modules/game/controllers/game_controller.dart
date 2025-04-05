@@ -23,6 +23,7 @@ class GameController extends GetxController {
   final gamesPlayed = 0.obs;
   final gamesWon = 0.obs;
   final animationState = AnimationState.idle.obs;
+  final handScale = 1.0.obs;
 
   Timer? _timer;
   Timer? _animationTimer;
@@ -66,7 +67,7 @@ class GameController extends GetxController {
     _animationTimer?.cancel();
     gameState.value = GameState()
       ..isUserBatting = true
-      ..timeLeft = 5;
+      ..timeLeft = 10;
     animationState.value = AnimationState.idle;
     _startTimer();
   }
@@ -87,18 +88,30 @@ class GameController extends GetxController {
   void _handleTimeout() {
     _timer?.cancel();
     if (!gameState.value.isGameOver) {
-      final botInput = _getBotInput();
-      setUserInput(botInput);
+      if (gameState.value.isUserBatting) {
+        gameState.update((val) {
+          val?.timeLeft = 10;
+          val?.userInput = 0;
+        });
+        _startTimer();
+      } else {
+        final botInput = _getBotInput();
+        setUserInput(botInput);
+      }
     }
   }
 
   void setUserInput(int number) {
-    if (gameState.value.isGameOver || gameState.value.userInput != 0) return;
+    if (gameState.value.isGameOver) return;
 
     gameState.value = gameState.value.copyWith(userInput: number);
     _soundService.playButtonClick();
 
-    // Show batting/defending animation
+    gameState.update((val) {
+      val?.timeLeft = 10;
+    });
+    _startTimer();
+
     animationState.value = AnimationState.reveal;
     _animationTimer?.cancel();
     _animationTimer = Timer(const Duration(milliseconds: 2000), () {
@@ -126,6 +139,7 @@ class GameController extends GetxController {
           userScore: state.userScore + state.userInput,
           userInput: 0,
           botInput: botInput,
+          ballsDelivered: state.ballsDelivered + 1,
           gameStatus: 'You scored ${state.userInput} runs!',
         );
       }
@@ -144,6 +158,7 @@ class GameController extends GetxController {
           botScore: state.botScore + botInput,
           userInput: 0,
           botInput: botInput,
+          ballsDelivered: state.ballsDelivered + 1,
           gameStatus: 'Bot scored $botInput runs!',
         );
       }
@@ -215,6 +230,10 @@ class GameController extends GetxController {
     if (gamesPlayed.value == 0) return 0;
     return (gamesWon.value / gamesPlayed.value) * 100;
   }
+
+  void setHandScale(double scale) {
+    handScale.value = scale;
+  }
 }
 
 class GameState {
@@ -225,6 +244,7 @@ class GameState {
   int userInput = 0;
   int botInput = 0;
   int timeLeft = 5;
+  int ballsDelivered = 0;
   String gameStatus = 'Your turn to bat!';
 
   GameState copyWith({
@@ -235,6 +255,7 @@ class GameState {
     int? userInput,
     int? botInput,
     int? timeLeft,
+    int? ballsDelivered,
     String? gameStatus,
   }) {
     return GameState()
@@ -245,6 +266,7 @@ class GameState {
       ..userInput = userInput ?? this.userInput
       ..botInput = botInput ?? this.botInput
       ..timeLeft = timeLeft ?? this.timeLeft
+      ..ballsDelivered = ballsDelivered ?? this.ballsDelivered
       ..gameStatus = gameStatus ?? this.gameStatus;
   }
 }

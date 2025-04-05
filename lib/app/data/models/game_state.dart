@@ -3,7 +3,7 @@ class GameState {
   final int botScore;
   final int userInput;
   final int botInput;
-  final int ballsPlayed;
+  final int ballsDelivered;
   final bool isUserBatting;
   final bool isGameOver;
   final String gameStatus;
@@ -14,7 +14,7 @@ class GameState {
     this.botScore = 0,
     this.userInput = 0,
     this.botInput = 0,
-    this.ballsPlayed = 0,
+    this.ballsDelivered = 0,
     this.isUserBatting = true,
     this.isGameOver = false,
     this.gameStatus = '',
@@ -26,7 +26,7 @@ class GameState {
     int? botScore,
     int? userInput,
     int? botInput,
-    int? ballsPlayed,
+    int? ballsDelivered,
     bool? isUserBatting,
     bool? isGameOver,
     String? gameStatus,
@@ -37,7 +37,7 @@ class GameState {
       botScore: botScore ?? this.botScore,
       userInput: userInput ?? this.userInput,
       botInput: botInput ?? this.botInput,
-      ballsPlayed: ballsPlayed ?? this.ballsPlayed,
+      ballsDelivered: ballsDelivered ?? this.ballsDelivered,
       isUserBatting: isUserBatting ?? this.isUserBatting,
       isGameOver: isGameOver ?? this.isGameOver,
       gameStatus: gameStatus ?? this.gameStatus,
