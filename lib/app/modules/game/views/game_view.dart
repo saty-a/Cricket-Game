@@ -9,10 +9,15 @@ class GameView extends GetView<GameController> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
+        color: Colors.black,
         image: DecorationImage(
-          image: AssetImage('assets/images/background.png'),
+          image: const AssetImage('assets/images/background.png'),
           fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(
+            Colors.black.withOpacity(0.7),
+            BlendMode.darken,
+          ),
         ),
       ),
       child: Scaffold(
@@ -71,11 +76,31 @@ class GameView extends GetView<GameController> {
     return Container(
       height: 200,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          _buildPlayerHand(),
-          _buildBotHand(),
+          // Glowing circle background
+          Container(
+            width: 220,
+            height: 220,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.3),
+                  blurRadius: 50,
+                  spreadRadius: 20,
+                ),
+              ],
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildPlayerHand(),
+              _buildBotHand(),
+            ],
+          ),
         ],
       ),
     );
@@ -87,25 +112,36 @@ class GameView extends GetView<GameController> {
       final isRevealing = controller.animationState.value == AnimationState.reveal;
       final isCelebrating = controller.animationState.value == AnimationState.celebrate;
       
+      Widget handWidget;
       if (isCelebrating) {
-        return Image.asset('assets/images/you_won.png', width: 120, height: 120);
-      }
-
-      if (input == 0) {
-        return Image.asset(
-          'assets/images/batting.png',
+        handWidget = Image.asset('assets/images/you_won.png', width: 120, height: 120);
+      } else {
+        handWidget = SizedBox(
           width: 120,
           height: 120,
+          child: RiveAnimation.asset(
+            'assets/images/hand_cricket.riv',
+            fit: BoxFit.contain,
+            animations: input == 0 ? ['idle'] : ['number_$input'],
+          ),
         );
       }
 
       return AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
         opacity: isRevealing ? 0.0 : 1.0,
-        child: Image.asset(
-          'assets/images/${_getNumberImage(input)}',
-          width: 120,
-          height: 120,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.blue.withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: handWidget,
         ),
       );
     });
@@ -117,40 +153,43 @@ class GameView extends GetView<GameController> {
       final isRevealing = controller.animationState.value == AnimationState.reveal;
       final isLosing = controller.animationState.value == AnimationState.lose;
       
+      Widget handWidget;
       if (isLosing) {
-        return Image.asset('assets/images/out.png', width: 120, height: 120);
-      }
-
-      if (input == 0) {
-        return Image.asset(
-          'assets/images/ball.png',
+        handWidget = Image.asset('assets/images/out.png', width: 120, height: 120);
+      } else {
+        handWidget = SizedBox(
           width: 120,
           height: 120,
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.rotationY(3.14159),
+            child: RiveAnimation.asset(
+              'assets/images/hand_cricket.riv',
+              fit: BoxFit.contain,
+              animations: input == 0 ? ['idle'] : ['number_$input'],
+            ),
+          ),
         );
       }
 
       return AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
         opacity: isRevealing ? 0.0 : 1.0,
-        child: Image.asset(
-          'assets/images/${_getNumberImage(input)}',
-          width: 120,
-          height: 120,
+        child: Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: handWidget,
         ),
       );
     });
-  }
-
-  String _getNumberImage(int number) {
-    switch (number) {
-      case 1: return 'one.png';
-      case 2: return 'two.png';
-      case 3: return 'three.png';
-      case 4: return 'four.png';
-      case 5: return 'five.png';
-      case 6: return 'six.png';
-      default: return 'one.png';
-    }
   }
 
   Widget _buildStats() {
@@ -277,22 +316,28 @@ class GameView extends GetView<GameController> {
   }
 
   Widget _buildGameStatus() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Obx(() => Text(
-        controller.gameState.value.gameStatus,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
+    return Obx(() {
+      final status = controller.gameState.value.gameStatus;
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
+        child: Text(
+          status,
+          style: const TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                color: Colors.blue,
+                blurRadius: 20,
+                offset: Offset(0, 0),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
-      )),
-    );
+      );
+    });
   }
 
   Widget _buildTimer() {
@@ -318,13 +363,10 @@ class GameView extends GetView<GameController> {
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      margin: const EdgeInsets.only(bottom: 10),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildNumberButtons(),
         ],
@@ -333,9 +375,13 @@ class GameView extends GetView<GameController> {
   }
 
   Widget _buildNumberButtons() {
-    return Obx(() => Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    return Obx(() => GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 3,
+      mainAxisSpacing: 10,
+      crossAxisSpacing: 10,
+      childAspectRatio: 1.5,
       children: List.generate(6, (index) {
         final number = index + 1;
         return ElevatedButton(
@@ -343,19 +389,35 @@ class GameView extends GetView<GameController> {
               ? null
               : () => controller.setUserInput(number),
           style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.all(20),
+            backgroundColor: Colors.black.withOpacity(0.6),
+            foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(15),
             ),
-            elevation: 4,
+            padding: const EdgeInsets.all(8),
+            elevation: 8,
+            shadowColor: Colors.blue.withOpacity(0.5),
           ),
           child: Image.asset(
             'assets/images/${_getNumberImage(number)}',
-            width: 32,
-            height: 32,
+            width: 45,
+            height: 45,
+            fit: BoxFit.contain,
           ),
         );
       }),
     ));
+  }
+
+  String _getNumberImage(int number) {
+    switch (number) {
+      case 1: return 'one.png';
+      case 2: return 'two.png';
+      case 3: return 'three.png';
+      case 4: return 'four.png';
+      case 5: return 'five.png';
+      case 6: return 'six.png';
+      default: return 'one.png';
+    }
   }
 } 

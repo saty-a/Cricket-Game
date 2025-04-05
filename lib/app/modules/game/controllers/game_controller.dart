@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import '../../../services/sound_service.dart';
 
 enum Difficulty { easy, medium, hard }
 enum AnimationState { idle, reveal, celebrate, lose }
@@ -14,6 +15,7 @@ class GameController extends GetxController {
 
   final _storage = GetStorage();
   final _random = Random();
+  final _soundService = Get.find<SoundService>();
 
   final gameState = GameState().obs;
   final difficulty = Difficulty.medium.obs;
@@ -93,12 +95,14 @@ class GameController extends GetxController {
   void setUserInput(int input) {
     if (input < 1 || input > 6 || gameState.value.isGameOver) return;
 
+    _soundService.playButtonClick();
     _timer?.cancel();
     final botInput = _getBotInput();
     
     animationState.value = AnimationState.reveal;
     _animationTimer?.cancel();
     _animationTimer = Timer(const Duration(milliseconds: 500), () {
+      _soundService.playNumberReveal();
       gameState.update((val) {
         val?.userInput = input;
         val?.botInput = botInput;
@@ -143,6 +147,7 @@ class GameController extends GetxController {
   }
 
   void _handleOut(GameState state) {
+    _soundService.playOut();
     if (state.isUserBatting) {
       state.isUserBatting = false;
       state.gameStatus = 'You\'re out! Bot is batting now.';
@@ -168,9 +173,11 @@ class GameController extends GetxController {
       state.gameStatus = 'You won! 🎉';
       gamesWon.value++;
       animationState.value = AnimationState.celebrate;
+      _soundService.playWin();
     } else if (state.userScore < state.botScore) {
       state.gameStatus = 'Bot won! Try again.';
       animationState.value = AnimationState.lose;
+      _soundService.playLose();
     } else {
       state.gameStatus = 'It\'s a tie!';
       animationState.value = AnimationState.idle;
