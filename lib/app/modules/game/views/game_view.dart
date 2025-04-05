@@ -8,50 +8,60 @@ class GameView extends GetView<GameController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Hand Cricket',
-          style: TextStyle(fontWeight: FontWeight.bold),
+    return Container(
+      decoration: const BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage('assets/images/background.png'),
+          fit: BoxFit.cover,
         ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: controller.startNewGame,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          backgroundColor: Colors.white.withOpacity(0.9),
+          title: const Text(
+            'Hand Cricket',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          PopupMenuButton<Difficulty>(
-            icon: const Icon(Icons.settings),
-            onSelected: controller.setDifficulty,
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: Difficulty.easy,
-                child: Text('Easy'),
-              ),
-              const PopupMenuItem(
-                value: Difficulty.medium,
-                child: Text('Medium'),
-              ),
-              const PopupMenuItem(
-                value: Difficulty.hard,
-                child: Text('Hard'),
-              ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: controller.startNewGame,
+            ),
+            PopupMenuButton<Difficulty>(
+              icon: const Icon(Icons.settings),
+              onSelected: controller.setDifficulty,
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: Difficulty.easy,
+                  child: Text('Easy'),
+                ),
+                const PopupMenuItem(
+                  value: Difficulty.medium,
+                  child: Text('Medium'),
+                ),
+                const PopupMenuItem(
+                  value: Difficulty.hard,
+                  child: Text('Hard'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildStats(),
+              _buildScoreBoard(),
+              _buildHandGestures(),
+              _buildGameStatus(),
+              _buildTimer(),
+              const Spacer(),
+              _buildInputArea(),
+              const SizedBox(height: 20),
             ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildStats(),
-            _buildScoreBoard(),
-            _buildHandGestures(),
-            _buildGameStatus(),
-            _buildTimer(),
-            const Spacer(),
-            _buildInputArea(),
-            const SizedBox(height: 20),
-          ],
         ),
       ),
     );
@@ -74,31 +84,28 @@ class GameView extends GetView<GameController> {
   Widget _buildPlayerHand() {
     return Obx(() {
       final input = controller.gameState.value.userInput;
-      return Transform.scale(
-        scale: 1.2,
-        child: Container(
+      final isRevealing = controller.animationState.value == AnimationState.reveal;
+      final isCelebrating = controller.animationState.value == AnimationState.celebrate;
+      
+      if (isCelebrating) {
+        return Image.asset('assets/images/you_won.png', width: 120, height: 120);
+      }
+
+      if (input == 0) {
+        return Image.asset(
+          'assets/images/batting.png',
           width: 120,
           height: 120,
-          decoration: BoxDecoration(
-            color: Colors.blue.shade100,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              input == 0 ? '?' : input.toString(),
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+        );
+      }
+
+      return AnimatedOpacity(
+        duration: const Duration(milliseconds: 300),
+        opacity: isRevealing ? 0.0 : 1.0,
+        child: Image.asset(
+          'assets/images/${_getNumberImage(input)}',
+          width: 120,
+          height: 120,
         ),
       );
     });
@@ -107,39 +114,53 @@ class GameView extends GetView<GameController> {
   Widget _buildBotHand() {
     return Obx(() {
       final input = controller.gameState.value.botInput;
-      return Transform.scale(
-        scale: 1.2,
-        child: Container(
+      final isRevealing = controller.animationState.value == AnimationState.reveal;
+      final isLosing = controller.animationState.value == AnimationState.lose;
+      
+      if (isLosing) {
+        return Image.asset('assets/images/out.png', width: 120, height: 120);
+      }
+
+      if (input == 0) {
+        return Image.asset(
+          'assets/images/ball.png',
           width: 120,
           height: 120,
-          decoration: BoxDecoration(
-            color: Colors.red.shade100,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Center(
-            child: Text(
-              input == 0 ? '?' : input.toString(),
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+        );
+      }
+
+      return AnimatedOpacity(
+        duration: const Duration(milliseconds: 300),
+        opacity: isRevealing ? 0.0 : 1.0,
+        child: Image.asset(
+          'assets/images/${_getNumberImage(input)}',
+          width: 120,
+          height: 120,
         ),
       );
     });
   }
 
+  String _getNumberImage(int number) {
+    switch (number) {
+      case 1: return 'one.png';
+      case 2: return 'two.png';
+      case 3: return 'three.png';
+      case 4: return 'four.png';
+      case 5: return 'five.png';
+      case 6: return 'six.png';
+      default: return 'one.png';
+    }
+  }
+
   Widget _buildStats() {
     return Container(
       padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
@@ -187,15 +208,8 @@ class GameView extends GetView<GameController> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.blue.shade100,
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -240,9 +254,13 @@ class GameView extends GetView<GameController> {
               ),
             ),
             if (isBatting)
-              const Padding(
-                padding: EdgeInsets.only(left: 8.0),
-                child: Icon(Icons.sports_cricket, color: Colors.blue),
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Image.asset(
+                  'assets/images/batting.png',
+                  width: 24,
+                  height: 24,
+                ),
               ),
           ],
         ),
@@ -261,6 +279,11 @@ class GameView extends GetView<GameController> {
   Widget _buildGameStatus() {
     return Container(
       padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Obx(() => Text(
         controller.gameState.value.gameStatus,
         style: const TextStyle(
@@ -275,6 +298,11 @@ class GameView extends GetView<GameController> {
   Widget _buildTimer() {
     return Container(
       padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Obx(() => Text(
         'Time left: ${controller.gameState.value.timeLeft}s',
         style: TextStyle(
@@ -291,6 +319,11 @@ class GameView extends GetView<GameController> {
   Widget _buildInputArea() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         children: [
           _buildNumberButtons(),
@@ -316,9 +349,10 @@ class GameView extends GetView<GameController> {
             ),
             elevation: 4,
           ),
-          child: Text(
-            number.toString(),
-            style: const TextStyle(fontSize: 20),
+          child: Image.asset(
+            'assets/images/${_getNumberImage(number)}',
+            width: 32,
+            height: 32,
           ),
         );
       }),
