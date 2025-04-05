@@ -52,6 +52,11 @@ class SoundService extends GetxService {
     await _playSound('out.mp3');
   }
 
+  Future<void> playScoreIncrease() async {
+    if (!_isSoundEnabled.value) return;
+    await _playSound('score_increase.mp3');
+  }
+
   Future<void> _playSound(String fileName) async {
     try {
       await _audioPlayer.stop();
