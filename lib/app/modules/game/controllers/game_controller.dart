@@ -92,38 +92,103 @@ class GameController extends GetxController {
     }
   }
 
-  void setUserInput(int input) {
-    if (input < 1 || input > 6 || gameState.value.isGameOver) return;
+  void setUserInput(int number) {
+    if (gameState.value.isGameOver || gameState.value.userInput != 0) return;
 
+    gameState.value = gameState.value.copyWith(userInput: number);
     _soundService.playButtonClick();
-    _timer?.cancel();
-    final botInput = _getBotInput();
-    
+
+    // Show batting/defending animation
     animationState.value = AnimationState.reveal;
     _animationTimer?.cancel();
-    _animationTimer = Timer(const Duration(milliseconds: 500), () {
-      _soundService.playNumberReveal();
-      gameState.update((val) {
-        val?.userInput = input;
-        val?.botInput = botInput;
-        val?.timeLeft = 5;
-
-        if (input == botInput) {
-          _handleOut(val!);
-        } else if (val?.isUserBatting ?? false) {
-          val?.userScore += input;
-        } else {
-          val?.botScore += botInput;
-        }
-
-        _checkGameOver(val!);
-      });
-
-      if (!gameState.value.isGameOver) {
-        animationState.value = AnimationState.idle;
-        _startTimer();
-      }
+    _animationTimer = Timer(const Duration(milliseconds: 2000), () {
+      animationState.value = AnimationState.idle;
+      _processTurn();
     });
+  }
+
+  void _processTurn() {
+    final state = gameState.value;
+    final botInput = _getBotInput();
+    
+    if (state.isUserBatting) {
+      if (state.userInput == botInput) {
+        // User is out
+        _soundService.playOut();
+        animationState.value = AnimationState.lose;
+        _animationTimer?.cancel();
+        _animationTimer = Timer(const Duration(milliseconds: 2000), () {
+          _handleOut();
+        });
+      } else {
+        _soundService.playButtonClick();
+        gameState.value = state.copyWith(
+          userScore: state.userScore + state.userInput,
+          userInput: 0,
+          botInput: botInput,
+          gameStatus: 'You scored ${state.userInput} runs!',
+        );
+      }
+    } else {
+      if (state.userInput == botInput) {
+        // Bot is out
+        _soundService.playWin();
+        animationState.value = AnimationState.celebrate;
+        _animationTimer?.cancel();
+        _animationTimer = Timer(const Duration(milliseconds: 2000), () {
+          _handleBotOut();
+        });
+      } else {
+        _soundService.playButtonClick();
+        gameState.value = state.copyWith(
+          botScore: state.botScore + botInput,
+          userInput: 0,
+          botInput: botInput,
+          gameStatus: 'Bot scored $botInput runs!',
+        );
+      }
+    }
+  }
+
+  void _handleOut() {
+    final state = gameState.value;
+    if (state.isUserBatting) {
+      // User's innings is over, bot starts batting
+      gameState.value = state.copyWith(
+        isUserBatting: false,
+        userInput: 0,
+        botInput: 0,
+        gameStatus: 'You are OUT! Bot is batting now.',
+      );
+      animationState.value = AnimationState.idle;
+    }
+  }
+
+  void _handleBotOut() {
+    final state = gameState.value;
+    if (!state.isUserBatting) {
+      // Bot's innings is over
+      final userWon = state.userScore > state.botScore;
+      gameState.value = state.copyWith(
+        isGameOver: true,
+        userInput: 0,
+        botInput: 0,
+        gameStatus: userWon ? 'You Won! 🎉' : 'Bot Won! 😢',
+      );
+      animationState.value = userWon ? AnimationState.celebrate : AnimationState.lose;
+      
+      // Update stats
+      if (userWon) {
+        gamesWon.value++;
+      }
+      gamesPlayed.value++;
+      if (state.userScore > highScore.value) {
+        highScore.value = state.userScore;
+      }
+      
+      // Save stats
+      _updateStorage();
+    }
   }
 
   int _getBotInput() {
@@ -146,51 +211,6 @@ class GameController extends GetxController {
     }
   }
 
-  void _handleOut(GameState state) {
-    _soundService.playOut();
-    if (state.isUserBatting) {
-      state.isUserBatting = false;
-      state.gameStatus = 'You\'re out! Bot is batting now.';
-      if (state.botScore > state.userScore) {
-        _endGame(state);
-      }
-    } else {
-      _endGame(state);
-    }
-  }
-
-  void _checkGameOver(GameState state) {
-    if (!state.isUserBatting && state.botScore > state.userScore) {
-      _endGame(state);
-    }
-  }
-
-  void _endGame(GameState state) {
-    state.isGameOver = true;
-    _timer?.cancel();
-
-    if (state.userScore > state.botScore) {
-      state.gameStatus = 'You won! 🎉';
-      gamesWon.value++;
-      animationState.value = AnimationState.celebrate;
-      _soundService.playWin();
-    } else if (state.userScore < state.botScore) {
-      state.gameStatus = 'Bot won! Try again.';
-      animationState.value = AnimationState.lose;
-      _soundService.playLose();
-    } else {
-      state.gameStatus = 'It\'s a tie!';
-      animationState.value = AnimationState.idle;
-    }
-
-    if (state.userScore > highScore.value) {
-      highScore.value = state.userScore;
-    }
-
-    gamesPlayed.value++;
-    _updateStorage();
-  }
-
   double get winRate {
     if (gamesPlayed.value == 0) return 0;
     return (gamesWon.value / gamesPlayed.value) * 100;
@@ -206,4 +226,25 @@ class GameState {
   int botInput = 0;
   int timeLeft = 5;
   String gameStatus = 'Your turn to bat!';
+
+  GameState copyWith({
+    bool? isUserBatting,
+    bool? isGameOver,
+    int? userScore,
+    int? botScore,
+    int? userInput,
+    int? botInput,
+    int? timeLeft,
+    String? gameStatus,
+  }) {
+    return GameState()
+      ..isUserBatting = isUserBatting ?? this.isUserBatting
+      ..isGameOver = isGameOver ?? this.isGameOver
+      ..userScore = userScore ?? this.userScore
+      ..botScore = botScore ?? this.botScore
+      ..userInput = userInput ?? this.userInput
+      ..botInput = botInput ?? this.botInput
+      ..timeLeft = timeLeft ?? this.timeLeft
+      ..gameStatus = gameStatus ?? this.gameStatus;
+  }
 }
