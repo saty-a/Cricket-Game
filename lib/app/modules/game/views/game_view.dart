@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import 'package:rive/rive.dart' as rive;
 import '../controllers/game_controller.dart';
 
 class GameView extends GetView<GameController> {
@@ -101,8 +101,9 @@ class GameView extends GetView<GameController> {
 
   Widget _buildGameOverOverlay() {
     return Obx(() {
-      if (!controller.gameState.value.isGameOver)
+      if (!controller.gameState.value.isGameOver) {
         return const SizedBox.shrink();
+      }
 
       final userWon = controller.gameState.value.userScore >
           controller.gameState.value.botScore;
@@ -238,11 +239,11 @@ class GameView extends GetView<GameController> {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withAlpha(77),
+            color: Colors.black.withAlpha(60),
             borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               GestureDetector(
                 onTapDown: (_) => controller.setHandScale(0.9),
@@ -253,10 +254,7 @@ class GameView extends GetView<GameController> {
                       child: Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.rotationY(3.14159),
-                        child: Transform.translate(
-                          offset: const Offset(40, 0),
-                          child: _buildPlayerHand(),
-                        ),
+                        child: _buildPlayerHand(),
                       ),
                     )),
               ),
@@ -269,10 +267,7 @@ class GameView extends GetView<GameController> {
                       child: Transform(
                         alignment: Alignment.center,
                         transform: Matrix4.rotationY(3.14159),
-                        child: Transform.translate(
-                          offset: const Offset(-40, 0),
-                          child: _buildBotHand(),
-                        ),
+                        child: _buildBotHand(),
                       ),
                     )),
               ),
@@ -288,28 +283,15 @@ class GameView extends GetView<GameController> {
       final input = controller.gameState.value.userInput;
       final isRevealing =
           controller.animationState.value == AnimationState.reveal;
-      final isCelebrating =
-          controller.animationState.value == AnimationState.celebrate;
-
-      Widget handWidget;
-      if (isCelebrating) {
-        handWidget =
-            Image.asset('assets/images/you_won.png', width: 120, height: 120);
-      } else {
-        handWidget = SizedBox(
-          width: 120,
-          height: 120,
-          child: rive.RiveAnimation.asset(
-            'assets/images/hand_cricket.riv',
-            fit: BoxFit.contain,
-            animations: input == 0 ? ['idle'] : ['number_$input'],
-          ),
-        );
-      }
       return AnimatedOpacity(
         duration: const Duration(milliseconds: 300),
         opacity: isRevealing ? 0.0 : 1.0,
-        child: handWidget,
+        child: Image.asset(
+          _getHandImage(input),
+          width: 120,
+          height: 120,
+          fit: BoxFit.contain,
+        ),
       );
     });
   }
@@ -319,33 +301,40 @@ class GameView extends GetView<GameController> {
       final input = controller.gameState.value.botInput;
       final isRevealing =
           controller.animationState.value == AnimationState.reveal;
-      final isLosing = controller.animationState.value == AnimationState.lose;
-
-      Widget handWidget;
-      if (isLosing) {
-        handWidget =
-            Image.asset('assets/images/out.png', width: 120, height: 120);
-      } else {
-        handWidget = SizedBox(
-          width: 120,
-          height: 120,
-          child: Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.rotationY(3.14159),
-            child: rive.RiveAnimation.asset(
-              'assets/images/hand_cricket.riv',
-              fit: BoxFit.contain,
-              animations: input == 0 ? ['idle'] : ['number_$input'],
-            ),
-          ),
-        );
-      }
 
       return AnimatedOpacity(
           duration: const Duration(milliseconds: 300),
           opacity: isRevealing ? 0.0 : 1.0,
-          child: handWidget);
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.rotationY(3.14159),
+            child: Image.asset(
+              _getHandImage(input),
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
+            ),
+          ));
     });
+  }
+
+  String _getHandImage(int number) {
+    switch (number) {
+      case 1:
+        return 'assets/images/hand_one.png';
+      case 2:
+        return 'assets/images/hand_two.png';
+      case 3:
+        return 'assets/images/hand_three.png';
+      case 4:
+        return 'assets/images/hand_four.png';
+      case 5:
+        return 'assets/images/hand_five.png';
+      case 6:
+        return 'assets/images/hand_six.png';
+      default:
+        return 'assets/images/hand_idle.png';
+    }
   }
 
   Widget _buildStats() {
@@ -411,10 +400,11 @@ class GameView extends GetView<GameController> {
                 ),
                 const SizedBox(height: 8),
                 Obx(() {
-                  final score = controller.gameState.value.userScore;
                   final isBatting = controller.gameState.value.isUserBatting;
                   final ballsDelivered =
                       controller.gameState.value.ballsDelivered;
+                  final userScoreHistory =
+                      controller.gameState.value.userScoreHistory;
 
                   return Column(
                     children: [
@@ -422,10 +412,10 @@ class GameView extends GetView<GameController> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(3, (index) {
                           final isActive = isBatting
-                              ? (score > index * 10)
-                              : // Fill based on score when batting
-                              (ballsDelivered >
-                                  index); // Fill based on balls when bowling
+                              ? (ballsDelivered >
+                                  index) // Show score when batting
+                              : (ballsDelivered >
+                                  index); // Show ball when bowling
 
                           return Container(
                             width: 40,
@@ -436,24 +426,11 @@ class GameView extends GetView<GameController> {
                               color: isActive
                                   ? Colors.green.withAlpha(204)
                                   : Colors.grey.shade800.withAlpha(230),
-                              border: Border.all(
-                                color: Colors.white.withAlpha(77),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isActive
-                                      ? Colors.green.withAlpha(77)
-                                      : Colors.transparent,
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
                             ),
                             child: Center(
                               child: isBatting && isActive
                                   ? Text(
-                                      '${(index + 1) * 10}',
+                                      '${userScoreHistory[index]}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -463,8 +440,15 @@ class GameView extends GetView<GameController> {
                                   : !isBatting && isActive
                                       ? Image.asset(
                                           'assets/images/ball.png',
-                                          width: 24,
-                                          height: 24,
+                                          fit: BoxFit.fill,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Icon(
+                                              Icons.sports_cricket,
+                                              color: Colors.white,
+                                              size: 24,
+                                            );
+                                          },
                                         )
                                       : null,
                             ),
@@ -476,11 +460,10 @@ class GameView extends GetView<GameController> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(3, (index) {
                           final isActive = isBatting
-                              ? (score > (index + 3) * 10)
-                              : // Fill based on score when batting
-                              (ballsDelivered >
-                                  index +
-                                      3); // Fill based on balls when bowling
+                              ? (ballsDelivered >
+                                  index + 3) // Show score when batting
+                              : (ballsDelivered >
+                                  index + 3); // Show ball when bowling
 
                           return Container(
                             width: 40,
@@ -491,24 +474,11 @@ class GameView extends GetView<GameController> {
                               color: isActive
                                   ? Colors.green.withAlpha(204)
                                   : Colors.grey.shade800.withAlpha(230),
-                              border: Border.all(
-                                color: Colors.white.withAlpha(77),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isActive
-                                      ? Colors.green.withAlpha(77)
-                                      : Colors.transparent,
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
                             ),
                             child: Center(
                               child: isBatting && isActive
                                   ? Text(
-                                      '${(index + 4) * 10}',
+                                      '${userScoreHistory[index + 3]}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -518,8 +488,15 @@ class GameView extends GetView<GameController> {
                                   : !isBatting && isActive
                                       ? Image.asset(
                                           'assets/images/ball.png',
-                                          width: 24,
-                                          height: 24,
+                                          fit: BoxFit.fill,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Icon(
+                                              Icons.sports_cricket,
+                                              color: Colors.white,
+                                              size: 24,
+                                            );
+                                          },
                                         )
                                       : null,
                             ),
@@ -568,10 +545,11 @@ class GameView extends GetView<GameController> {
                 ),
                 const SizedBox(height: 8),
                 Obx(() {
-                  final score = controller.gameState.value.botScore;
                   final isBatting = !controller.gameState.value.isUserBatting;
                   final ballsDelivered =
                       controller.gameState.value.ballsDelivered;
+                  final botScoreHistory =
+                      controller.gameState.value.botScoreHistory;
 
                   return Column(
                     children: [
@@ -579,10 +557,10 @@ class GameView extends GetView<GameController> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(3, (index) {
                           final isActive = isBatting
-                              ? (score > index * 10)
-                              : // Fill based on score when batting
-                              (ballsDelivered >
-                                  index); // Fill based on balls when bowling
+                              ? (ballsDelivered >
+                                  index) // Show score when batting
+                              : (ballsDelivered >
+                                  index); // Show ball when bowling
 
                           return Container(
                             width: 40,
@@ -593,24 +571,11 @@ class GameView extends GetView<GameController> {
                               color: isActive
                                   ? Colors.red.withAlpha(204)
                                   : Colors.grey.shade800.withAlpha(230),
-                              border: Border.all(
-                                color: Colors.white.withAlpha(77),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isActive
-                                      ? Colors.red.withAlpha(77)
-                                      : Colors.transparent,
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
                             ),
                             child: Center(
                               child: isBatting && isActive
                                   ? Text(
-                                      '${(index + 1) * 10}',
+                                      '${botScoreHistory[index]}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -620,8 +585,15 @@ class GameView extends GetView<GameController> {
                                   : !isBatting && isActive
                                       ? Image.asset(
                                           'assets/images/ball.png',
-                                          width: 24,
-                                          height: 24,
+                                          fit: BoxFit.fill,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Icon(
+                                              Icons.sports_cricket,
+                                              color: Colors.white,
+                                              size: 24,
+                                            );
+                                          },
                                         )
                                       : null,
                             ),
@@ -633,11 +605,10 @@ class GameView extends GetView<GameController> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(3, (index) {
                           final isActive = isBatting
-                              ? (score > (index + 3) * 10)
-                              : // Fill based on score when batting
-                              (ballsDelivered >
-                                  index +
-                                      3); // Fill based on balls when bowling
+                              ? (ballsDelivered >
+                                  index + 3) // Show score when batting
+                              : (ballsDelivered >
+                                  index + 3); // Show ball when bowling
 
                           return Container(
                             width: 40,
@@ -648,24 +619,11 @@ class GameView extends GetView<GameController> {
                               color: isActive
                                   ? Colors.red.withAlpha(204)
                                   : Colors.grey.shade800.withAlpha(230),
-                              border: Border.all(
-                                color: Colors.white.withAlpha(77),
-                                width: 2,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: isActive
-                                      ? Colors.red.withAlpha(77)
-                                      : Colors.transparent,
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ],
                             ),
                             child: Center(
                               child: isBatting && isActive
                                   ? Text(
-                                      '${(index + 4) * 10}',
+                                      '${botScoreHistory[index + 3]}',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -675,8 +633,15 @@ class GameView extends GetView<GameController> {
                                   : !isBatting && isActive
                                       ? Image.asset(
                                           'assets/images/ball.png',
-                                          width: 24,
-                                          height: 24,
+                                          fit: BoxFit.fill,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return const Icon(
+                                              Icons.sports_cricket,
+                                              color: Colors.white,
+                                              size: 24,
+                                            );
+                                          },
                                         )
                                       : null,
                             ),
@@ -767,12 +732,15 @@ class GameView extends GetView<GameController> {
           children: List.generate(6, (index) {
             final number = index + 1;
             final isSelected = controller.gameState.value.userInput == number;
+            final isEnabled = controller.isButtonEnabled.value;
             return Obx(() {
               final scale = isSelected ? 0.9 : 1.0;
               return GestureDetector(
-                onTapDown: (_) => controller.setUserInput(number),
-                onTapUp: (_) => controller.setUserInput(0),
-                onTapCancel: () => controller.setUserInput(0),
+                onTapDown:
+                    isEnabled ? (_) => controller.setUserInput(number) : null,
+                onTapUp: isEnabled ? (_) => controller.setUserInput(0) : null,
+                onTapCancel:
+                    isEnabled ? () => controller.setUserInput(0) : null,
                 child: Transform.scale(
                   scale: scale,
                   child: AnimatedContainer(
@@ -780,16 +748,20 @@ class GameView extends GetView<GameController> {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
-                        onTap: controller.gameState.value.isGameOver
-                            ? null
-                            : () => controller.setUserInput(number),
+                        onTap:
+                            controller.gameState.value.isGameOver || !isEnabled
+                                ? null
+                                : () => controller.setUserInput(number),
                         borderRadius: BorderRadius.circular(20),
                         child: FittedBox(
-                          child: Image.asset(
-                            'assets/images/${_getNumberImage(number)}',
-                            width: 45,
-                            height: 45,
-                            fit: BoxFit.contain,
+                          child: Opacity(
+                            opacity: isEnabled ? 1.0 : 0.5,
+                            child: Image.asset(
+                              'assets/images/${_getNumberImage(number)}',
+                              width: 45,
+                              height: 45,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                       ),
@@ -842,6 +814,154 @@ class GameView extends GetView<GameController> {
         ),
       );
     });
+  }
+
+  Widget _buildInstructionStep(
+    String number,
+    String title,
+    String subtitle,
+    List<int>? buttons, {
+    bool showHands = false,
+    bool showPrize = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1B22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withAlpha(30),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Colors.red.shade900,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    number,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    height: 1.5,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (buttons != null) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: buttons.map((number) {
+                return Container(
+                  width: 40,
+                  height: 40,
+                  margin: const EdgeInsets.only(left: 8),
+                  decoration: BoxDecoration(
+                    color: number == 3 ? Colors.amber : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      number.toString(),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color:
+                            number == 3 ? Colors.black : Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          if (showHands) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/hand_four.png',
+                      width: 60,
+                      height: 60,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle.split('\n')[0],
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.red.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+                Column(
+                  children: [
+                    Image.asset(
+                      'assets/images/hand_one.png',
+                      width: 60,
+                      height: 60,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      subtitle.split('\n')[1],
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.green.shade400,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+          if (showPrize) ...[
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                Image.asset(
+                  'assets/images/rcb_jersey.png',
+                  width: 60,
+                  height: 60,
+                ),
+                const SizedBox(width: 16),
+                Image.asset(
+                  'assets/images/bat.png',
+                  width: 60,
+                  height: 60,
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
